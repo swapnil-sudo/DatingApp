@@ -7,16 +7,20 @@ using System.Security.Cryptography;
 using System.Text;
 using API.DTOs;
 using Microsoft.EntityFrameworkCore;
+using API.Services;
+using API.Interfaces;
 
 namespace API.Controllers
 {
     public class AccountController : BaseApiController
     {
         private readonly DataContext _context;
+        private readonly ITokenService _tokenService;
 
-        public AccountController(DataContext context)
+        public AccountController(DataContext context,ITokenService tokenService )
         {
             _context = context;
+            _tokenService = tokenService;
         }
 
         [HttpPost("Register")]
@@ -37,8 +41,8 @@ namespace API.Controllers
         }
         
         [HttpPost("Login")]
-        public async Task<ActionResult<AppUser>> Login(LoginDto loginDto){
-            var user=await _context.Users.SingleAsync(x=>x.UserName==loginDto.Username);
+        public async Task<ActionResult<UserDto>> Login(LoginDto loginDto){
+            var user=await _context.Users.FirstOrDefaultAsync(x=>x.UserName==loginDto.Username);
 
             if(user==null) return Unauthorized("Invalid User");
 
@@ -50,7 +54,10 @@ namespace API.Controllers
                 if(computeHash[i]!=user.PasswordHash[i]) return Unauthorized("Invalid Password");
             }
 
-            return user;
+            return new UserDto{
+                Username=user.UserName,
+                Token=_tokenService.CreateToken(user)
+            };
         }
         public async Task<bool> UserExist(string username){
              return  await _context.Users.AnyAsync(x=>x.UserName==username.ToLower());
